@@ -14,7 +14,7 @@ type Frame =
 
 type Operation = | Buy of Position | Sell of Position
 
-type Transaction = { OpType: Operation; Value: float; Date: DateTime}
+type Transaction = { OpType: Operation; Date: DateTime}
 
 type Candle = 
     { 

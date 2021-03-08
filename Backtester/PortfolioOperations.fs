@@ -7,20 +7,22 @@ module PortfolioOperations =
     exception SellError of string
     exception BuyError of string
 
-    let buy frame symbol shares share_price = 
+    let buy frame transaction = 
         
+        let { Symbol=symbol; Shares=shares;  SharePrice=share_price } = (function | Buy position | Sell position -> position) transaction.OpType
         if frame.FreeCash >= (float shares) * share_price then
             let ret_free_cash = frame.FreeCash - ((float shares) * share_price)
             if Map.containsKey symbol frame.Portfolio then
                 let ret_map = Map.add symbol (frame.Portfolio.[symbol] + shares) frame.Portfolio
-                { frame with FreeCash = ret_free_cash; Portfolio = ret_map }
+                { FreeCash = ret_free_cash; Portfolio = ret_map; Date = transaction.Date }
             else 
                 let ret_map = Map.add symbol shares frame.Portfolio
-                { frame with FreeCash = ret_free_cash; Portfolio = ret_map }
+                { FreeCash = ret_free_cash; Portfolio = ret_map; Date = transaction.Date }
         else raise (BuyError($"You don't have enough capital to buy %d{shares} shares of %s{symbol}"))
         
-    let sell frame symbol shares share_price=
-
+    let sell frame transaction =
+        
+        let { Symbol=symbol; Shares=shares;  SharePrice=share_price } = (function | Buy position | Sell position -> position) transaction.OpType
         let ret_map = match frame.Portfolio.TryFind symbol with
                       | Some value -> match (value - shares) with 
                                       | 0 -> frame.Portfolio.Remove symbol
@@ -28,7 +30,7 @@ module PortfolioOperations =
                                       | _ -> raise (SellError($"Not enough shares of %s{symbol}"))
                       | None -> raise (SellError($"You don't have %s{symbol} in your portfolio"))
         let ret_free_cash = frame.FreeCash + ((float shares) * share_price)
-        { frame with FreeCash = ret_free_cash; Portfolio = ret_map}
+        { FreeCash = ret_free_cash; Portfolio = ret_map; Date=transaction.Date}
 
 
     let calculateFrameTotal frame = 
@@ -41,5 +43,5 @@ module PortfolioOperations =
     let rec calculateTransactionList transactions frame = 
         match transactions with 
         | [] -> frame
-        | h::t -> ((function | Buy position -> buy frame position.Symbol position.Shares position.SharePrice 
-                             | Sell position -> sell frame position.Symbol position.Shares position.SharePrice) h) |> calculateTransactionList t        
+        | h::t -> ((function | Buy position -> buy frame h 
+                             | Sell position -> sell frame h) h.OpType) |> calculateTransactionList t        
